@@ -223,6 +223,10 @@
       .zg { grid-template-columns: repeat(2, 1fr); }
     }
 
+    /* dashboard */
+    .dash-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    @media (max-width:600px) { .dash-grid { grid-template-columns:1fr; } }
+
     /* portfolio */
     .portfolio-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(90px,1fr)); gap:6px; }
     .pstock { background:var(--bg3); border:1px solid var(--border); border-radius:6px; padding:8px; text-align:center; font-size:11px; }
@@ -248,8 +252,11 @@
     <p>관리 시스템</p>
   </div>
 
+  <div class="sec-title">개요</div>
+  <div class="nav-item on" onclick="go('dashboard')">📊 대시보드</div>
+
   <div class="sec-title">유저 관리</div>
-  <div class="nav-item on" onclick="go('users')">👥 유저 목록</div>
+  <div class="nav-item" onclick="go('users')">👥 유저 목록</div>
   <div class="nav-item" onclick="go('user-detail')">👤 유저 상세</div>
   <div class="nav-item" onclick="go('bans')">🚫 정지 목록</div>
 
@@ -264,6 +271,7 @@
 
   <div class="sec-title">공지 / 채팅</div>
   <div class="nav-item" onclick="go('notices')">📢 공지 보내기</div>
+  <div class="nav-item" onclick="go('alerts')">🔔 알림 보내기</div>
   <div class="nav-item" onclick="go('chat')">💬 채팅 보기</div>
 
   <div class="sec-title">시스템</div>
@@ -275,7 +283,7 @@
   <div class="topbar">
     <div class="flex ic g8">
       <button class="hamburger" onclick="toggleSidebar()">☰</button>
-      <h2 id="ptitle">유저 목록</h2>
+      <h2 id="ptitle">대시보드</h2>
     </div>
     <div class="conn">
       <div class="dot" id="dot"></div>
@@ -285,8 +293,42 @@
 
   <div class="content">
 
+    <!-- 대시보드 -->
+    <div class="page on" id="page-dashboard">
+      <div class="stat-row" id="dash-stats">
+        <div class="stat-card"><div class="n" id="d-online">-</div><div class="l">온라인 유저</div></div>
+        <div class="stat-card"><div class="n" id="d-total">-</div><div class="l">전체 유저</div></div>
+        <div class="stat-card"><div class="n" id="d-bans" style="color:var(--danger)">-</div><div class="l">정지된 유저</div></div>
+        <div class="stat-card"><div class="n" id="d-chatbans" style="color:var(--warn)">-</div><div class="l">채팅차단 유저</div></div>
+      </div>
+      <div class="dash-grid">
+        <div class="card" style="margin:0">
+          <div class="card-title">🟢 온라인 유저</div>
+          <div id="d-online-list" style="font-size:12px;color:var(--muted)">로딩 중...</div>
+        </div>
+        <div class="card" style="margin:0">
+          <div class="card-title">📋 최근 명령 기록</div>
+          <div id="d-cmd-list" style="font-size:12px;color:var(--muted)">없음</div>
+        </div>
+      </div>
+      <div class="dash-grid" style="margin-top:14px">
+        <div class="card" style="margin:0">
+          <div class="card-title" style="margin-bottom:8px">📈 온라인 추이 <span style="font-size:10px;color:var(--muted);font-weight:400">(30초마다 기록)</span></div>
+          <canvas id="chart-online" height="120" style="width:100%;display:block"></canvas>
+        </div>
+        <div class="card" style="margin:0">
+          <div class="card-title" style="margin-bottom:8px">🏆 레벨 분포</div>
+          <canvas id="chart-level" height="120" style="width:100%;display:block"></canvas>
+        </div>
+      </div>
+      <div class="card" style="margin-top:14px">
+        <div class="card-title">📢 최근 공지</div>
+        <div id="d-notice-list" style="font-size:12px;color:var(--muted)">없음</div>
+      </div>
+    </div>
+
     <!-- 유저 목록 -->
-    <div class="page on" id="page-users">
+    <div class="page" id="page-users">
       <div class="card">
         <div class="flex g8 mb12">
           <input class="inp" id="usearch" placeholder="유저 ID 검색..." oninput="filterUsers()" style="flex:1">
@@ -589,6 +631,54 @@
       </div>
     </div>
 
+    <!-- 알림 -->
+    <div class="page" id="page-alerts">
+      <div class="card">
+        <div class="card-title">🔔 알림 보내기</div>
+        <div class="fg">
+          <label class="fl">대상</label>
+          <div class="flex g8">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px">
+              <input type="radio" name="alert-target" value="all" checked onchange="toggleAlertTarget(this.value)"> 전체
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px">
+              <input type="radio" name="alert-target" value="user" onchange="toggleAlertTarget(this.value)"> 개인
+            </label>
+          </div>
+        </div>
+        <div class="fg hidden" id="alert-user-wrap">
+          <label class="fl">유저 ID</label>
+          <select class="sel full" id="alert-user-sel"><option value="">유저 선택...</option></select>
+        </div>
+        <div class="fg">
+          <label class="fl">알림 종류</label>
+          <div class="flex g8" style="flex-wrap:wrap">
+            <label class="alert-type-btn" data-type="info" onclick="selectAlertType('info')" style="background:rgba(91,108,255,.15);border:1px solid var(--accent);border-radius:6px;padding:6px 12px;cursor:pointer;font-size:12px;color:var(--accent)">ℹ️ 정보</label>
+            <label class="alert-type-btn" data-type="ok" onclick="selectAlertType('ok')" style="border:1px solid var(--border);border-radius:6px;padding:6px 12px;cursor:pointer;font-size:12px;color:var(--muted)">✅ 성공</label>
+            <label class="alert-type-btn" data-type="warn" onclick="selectAlertType('warn')" style="border:1px solid var(--border);border-radius:6px;padding:6px 12px;cursor:pointer;font-size:12px;color:var(--muted)">⚠️ 경고</label>
+            <label class="alert-type-btn" data-type="danger" onclick="selectAlertType('danger')" style="border:1px solid var(--border);border-radius:6px;padding:6px 12px;cursor:pointer;font-size:12px;color:var(--muted)">🚨 위험</label>
+          </div>
+        </div>
+        <div class="fg">
+          <label class="fl">제목</label>
+          <input class="inp full" id="alert-title" placeholder="알림 제목...">
+        </div>
+        <div class="fg">
+          <label class="fl">내용</label>
+          <textarea class="inp full" id="alert-msg" rows="3" placeholder="알림 내용..." style="resize:vertical;line-height:1.6"></textarea>
+        </div>
+        <button class="btn btn-p full" style="margin-top:4px" onclick="sendAlert()">🔔 알림 보내기</button>
+      </div>
+
+      <div class="card">
+        <div class="flex jb ic mb12">
+          <div class="card-title" style="margin:0">📋 최근 알림 기록</div>
+          <button class="btn btn-s btn-sm" onclick="loadAlerts()">🔄 새로고침</button>
+        </div>
+        <div id="alert-log"><div style="text-align:center;color:var(--muted);padding:30px">로딩 중...</div></div>
+      </div>
+    </div>
+
     <!-- 지급 로그 -->
     <div class="page" id="page-grant-log">
       <div class="card">
@@ -672,7 +762,10 @@ let db = null;
 try {
   firebase.initializeApp(fbConfig);
   db = firebase.database();
-  db.ref('.info/connected').on('value', s => setConn(s.val() === true));
+  db.ref('.info/connected').on('value', s => {
+    setConn(s.val() === true);
+    if(s.val() === true) loadDashboard();
+  });
 } catch(e) { setConn(false); }
 
 function setConn(ok) {
@@ -686,9 +779,11 @@ let allUsers = {}, onlinePlayers = {}, allBans = {}, allChatBans = {}, allItems 
 let selUser = null, curAction = null, cmdLog = [];
 
 const TITLES = {
+  dashboard:'대시보드',
   users:'유저 목록', 'user-detail':'유저 상세', bans:'정지 목록',
   map:'맵 / 날씨', zones:'구역 관리', objects:'오브젝트 관리',
-  items:'아이템 목록', 'grant-log':'지급 로그', 'cmd-log':'명령 로그', notices:'공지 보내기', chat:'채팅 보기'
+  items:'아이템 목록', 'grant-log':'지급 로그', 'cmd-log':'명령 로그',
+  notices:'공지 보내기', alerts:'알림 보내기', chat:'채팅 보기'
 };
 
 // ── Navigation ──
@@ -699,6 +794,7 @@ function go(page) {
   document.querySelectorAll('.nav-item').forEach(el => {
     el.classList.toggle('on', (el.getAttribute('onclick')||'').includes(`'${page}'`));
   });
+  if(page==='dashboard') loadDashboard();
   if(page==='users') loadUsers();
   if(page==='bans') loadBans();
   if(page==='zones') loadZones();
@@ -707,6 +803,7 @@ function go(page) {
   if(page==='grant-log') loadGrantLog();
   if(page==='cmd-log') renderCmdLog();
   if(page==='notices') loadNotices();
+  if(page==='alerts') loadAlerts();
   if(page==='chat') loadChat();
 }
 
@@ -730,6 +827,189 @@ function sendCmd(type, params={}) {
       if(cmdLog.length > 200) cmdLog.pop();
     })
     .catch(e => { notify('오류: '+e.message, 'err'); throw e; });
+}
+
+// ── Dashboard ──
+let onlineHistory = []; // {t, n} 배열 — 패널 열어두는 동안 30초마다 기록
+let dashInterval = null;
+
+function startOnlineTracking() {
+  if(dashInterval) return;
+  function record() {
+    if(!db) return;
+    db.ref('online_players').once('value', s => {
+      const n = Object.keys(s.val()||{}).length;
+      onlineHistory.push({ t: Date.now(), n });
+      if(onlineHistory.length > 60) onlineHistory.shift(); // 최대 30분치
+      drawOnlineChart();
+    });
+  }
+  record();
+  dashInterval = setInterval(record, 30000);
+}
+
+function drawOnlineChart() {
+  const canvas = document.getElementById('chart-online');
+  if(!canvas) return;
+  const W = canvas.offsetWidth || 300;
+  canvas.width = W; canvas.height = 120;
+  const ctx = canvas.getContext('2d');
+  const data = onlineHistory;
+  ctx.clearRect(0, 0, W, 120);
+  if(data.length < 2) {
+    ctx.fillStyle = '#9198b0'; ctx.font = '12px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('데이터 수집 중...', W/2, 65);
+    return;
+  }
+  const pad = { t:10, r:10, b:24, l:28 };
+  const iw = W - pad.l - pad.r, ih = 120 - pad.t - pad.b;
+  const maxN = Math.max(...data.map(d=>d.n), 1);
+  const minN = 0;
+  const xS = i => pad.l + (i / (data.length-1)) * iw;
+  const yS = v => pad.t + ih - ((v - minN) / (maxN - minN || 1)) * ih;
+
+  // 격자선
+  ctx.strokeStyle = '#2a2d3e'; ctx.lineWidth = 1;
+  for(let i=0;i<=4;i++) {
+    const y = pad.t + (ih/4)*i;
+    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l+iw, y); ctx.stroke();
+    const val = Math.round(maxN - (maxN/4)*i);
+    ctx.fillStyle = '#9198b0'; ctx.font = '9px sans-serif'; ctx.textAlign = 'right';
+    ctx.fillText(val, pad.l-4, y+3);
+  }
+
+  // 그라디언트 채우기
+  const grad = ctx.createLinearGradient(0, pad.t, 0, pad.t+ih);
+  grad.addColorStop(0, 'rgba(46,213,115,0.25)');
+  grad.addColorStop(1, 'rgba(46,213,115,0)');
+  ctx.beginPath();
+  ctx.moveTo(xS(0), yS(data[0].n));
+  data.forEach((d,i) => ctx.lineTo(xS(i), yS(d.n)));
+  ctx.lineTo(xS(data.length-1), pad.t+ih);
+  ctx.lineTo(xS(0), pad.t+ih);
+  ctx.closePath();
+  ctx.fillStyle = grad; ctx.fill();
+
+  // 선
+  ctx.beginPath(); ctx.strokeStyle = '#2ed573'; ctx.lineWidth = 2;
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  data.forEach((d,i) => i===0 ? ctx.moveTo(xS(i),yS(d.n)) : ctx.lineTo(xS(i),yS(d.n)));
+  ctx.stroke();
+
+  // 마지막 점
+  const lx = xS(data.length-1), ly = yS(data[data.length-1].n);
+  ctx.beginPath(); ctx.arc(lx, ly, 4, 0, Math.PI*2);
+  ctx.fillStyle = '#2ed573'; ctx.fill();
+
+  // 시간 레이블
+  ctx.fillStyle = '#9198b0'; ctx.font = '9px sans-serif'; ctx.textAlign = 'center';
+  const first = data[0].t, last = data[data.length-1].t;
+  ctx.fillText(new Date(first).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}), xS(0), 120-6);
+  ctx.fillText(new Date(last).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}), xS(data.length-1), 120-6);
+}
+
+function drawLevelChart(users) {
+  const canvas = document.getElementById('chart-level');
+  if(!canvas) return;
+  const W = canvas.offsetWidth || 300;
+  canvas.width = W; canvas.height = 120;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, W, 120);
+
+  // 레벨 분포 집계
+  const dist = {};
+  Object.values(users).forEach(u => {
+    const lv = u.level || 1;
+    dist[lv] = (dist[lv]||0) + 1;
+  });
+  const levels = Object.keys(dist).map(Number).sort((a,b)=>a-b);
+  if(!levels.length) {
+    ctx.fillStyle = '#9198b0'; ctx.font = '12px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('데이터 없음', W/2, 65); return;
+  }
+
+  const pad = { t:10, r:10, b:24, l:28 };
+  const iw = W - pad.l - pad.r, ih = 120 - pad.t - pad.b;
+  const maxV = Math.max(...Object.values(dist), 1);
+  const bw = Math.min(iw / levels.length - 4, 40);
+  const gap = iw / levels.length;
+
+  // 격자선
+  ctx.strokeStyle = '#2a2d3e'; ctx.lineWidth = 1;
+  for(let i=0;i<=4;i++) {
+    const y = pad.t + (ih/4)*i;
+    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l+iw, y); ctx.stroke();
+    ctx.fillStyle = '#9198b0'; ctx.font = '9px sans-serif'; ctx.textAlign = 'right';
+    ctx.fillText(Math.round(maxV - (maxV/4)*i), pad.l-4, y+3);
+  }
+
+  // 막대
+  levels.forEach((lv, i) => {
+    const v = dist[lv];
+    const bh = (v / maxV) * ih;
+    const x = pad.l + gap*i + (gap-bw)/2;
+    const y = pad.t + ih - bh;
+    const grad = ctx.createLinearGradient(0, y, 0, y+bh);
+    grad.addColorStop(0, '#5b6cff'); grad.addColorStop(1, 'rgba(91,108,255,0.4)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(x, y, bw, bh, [3,3,0,0]) : ctx.rect(x, y, bw, bh);
+    ctx.fill();
+    // 레벨 레이블
+    ctx.fillStyle = '#9198b0'; ctx.font = '9px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('Lv'+lv, x+bw/2, 120-6);
+    // 값
+    if(bh > 14) { ctx.fillStyle = '#fff'; ctx.fillText(v, x+bw/2, y+10); }
+  });
+}
+
+function loadDashboard() {
+  if(!db) return;
+  db.ref('users').once('value', s => {
+    const users = s.val()||{};
+    document.getElementById('d-total').textContent = Object.keys(users).length;
+    drawLevelChart(users);
+  });
+  db.ref('online_players').once('value', s => {
+    const op = s.val()||{};
+    const ids = Object.keys(op);
+    document.getElementById('d-online').textContent = ids.length;
+    const el = document.getElementById('d-online-list');
+    if(!ids.length) { el.innerHTML = '<span style="color:var(--muted)">온라인 유저 없음</span>'; return; }
+    el.innerHTML = ids.map(id => `
+      <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)">
+        <span style="width:6px;height:6px;border-radius:50%;background:var(--ok);display:inline-block;flex-shrink:0"></span>
+        <span style="font-weight:600">${id}</span>
+        <span style="color:var(--muted);font-size:11px;margin-left:auto">x:${Math.round(op[id].x||0)} y:${Math.round(op[id].y||0)}</span>
+      </div>`).join('');
+  });
+  db.ref('bans').once('value', s => {
+    document.getElementById('d-bans').textContent = Object.keys(s.val()||{}).length;
+  });
+  db.ref('chatbans').once('value', s => {
+    document.getElementById('d-chatbans').textContent = Object.keys(s.val()||{}).length;
+  });
+  db.ref('notices').once('value', s => {
+    const data = s.val()||{};
+    const entries = Object.entries(data).sort((a,b)=>(b[1].t||0)-(a[1].t||0)).slice(0,5);
+    const el = document.getElementById('d-notice-list');
+    if(!entries.length) { el.innerHTML = '<span style="color:var(--muted)">공지 없음</span>'; return; }
+    el.innerHTML = entries.map(([,n]) => `
+      <div style="display:flex;gap:10px;padding:5px 0;border-bottom:1px solid var(--border)">
+        <span style="color:var(--muted);white-space:nowrap;font-size:11px">${n.t ? new Date(n.t).toLocaleString('ko-KR') : '-'}</span>
+        <span>${n.msg||'-'}</span>
+      </div>`).join('');
+  });
+  const el = document.getElementById('d-cmd-list');
+  if(!cmdLog.length) { el.innerHTML = '<span style="color:var(--muted)">없음</span>'; return; }
+  el.innerHTML = cmdLog.slice(0,8).map(c => `
+    <div style="display:flex;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)">
+      <span style="color:var(--accent);font-weight:600;white-space:nowrap">${c.type}</span>
+      <span style="color:var(--muted);font-size:11px">${c.params && c.params.target ? c.params.target : ''}</span>
+      <span style="color:var(--muted);font-size:11px;margin-left:auto">${new Date(c.timestamp).toLocaleTimeString('ko-KR')}</span>
+    </div>`).join('');
+  startOnlineTracking();
+  drawOnlineChart();
 }
 
 // ── Users ──
@@ -771,9 +1051,9 @@ function renderUsersData(users) {
       <td data-label="ID"><strong>${id}</strong>${isDev ? ' 👑' : ''}</td>
       <td data-label="레벨">Lv.${u.level||1}</td>
       <td data-label="돈">${(u.money||0).toLocaleString()}원</td>
-      <td data-label="체력">${u.health||100}%</td>
-      <td data-label="에너지">${u.energy||100}%</td>
-      <td data-label="행복">${u.happy||100}%</td>
+      <td data-label="체력">${Math.round(u.health ?? 0)}%</td>
+      <td data-label="에너지">${Math.round(u.energy ?? 0)}%</td>
+      <td data-label="행복">${Math.round(u.happy ?? 0)}%</td>
       <td data-label="상태">${badge}</td>
       <td data-label=""><button class="btn btn-s btn-sm" onclick="viewUser('${id}')">상세보기</button></td>
     </tr>`;
@@ -977,7 +1257,7 @@ function loadBans() {
     const tbody = document.getElementById('chatban-tbody');
     const e = Object.entries(allChatBans);
     tbody.innerHTML = e.length
-      ? e.map(([uid, b]) => `<tr><td><strong>${uid}</strong></td><td>${b.reason||'-'}</td><td>${b.by||'-'}</td><td>${new Date(b.until).toLocaleDateString('ko-KR')}</td><td><button class="btn btn-ok btn-sm" onclick="unchatbanUser('${uid}')">해제</button></td></tr>`).join('')
+      ? e.map(([uid, b]) => `<tr><td><strong>${uid}</strong></td><td>${b.reason||'-'}</td><td>${b.by||'-'}</td><td>${b.until >= 9999999999000 ? '영구' : (b.until ? new Date(b.until).toLocaleDateString('ko-KR') : '-')}</td><td><button class="btn btn-ok btn-sm" onclick="unchatbanUser('${uid}')">해제</button></td></tr>`).join('')
       : `<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:30px">채팅차단된 유저 없음</td></tr>`;
   });
 }
@@ -1305,6 +1585,122 @@ function deleteNotice(uid) {
   if(!db) return;
   if(!confirm(`${uid}의 공지를 삭제할까요?`)) return;
   db.ref(`notices/${uid}`).remove().then(() => notify(`삭제 완료: ${uid}`, 'info'));
+}
+
+// ── Alerts ──
+let curAlertType = 'info';
+
+const ALERT_COLORS = {
+  info:   { bg:'rgba(91,108,255,.15)',  border:'var(--accent)', color:'var(--accent)',  label:'ℹ️ 정보' },
+  ok:     { bg:'rgba(46,213,115,.15)',  border:'var(--ok)',     color:'var(--ok)',      label:'✅ 성공' },
+  warn:   { bg:'rgba(255,165,2,.15)',   border:'var(--warn)',   color:'var(--warn)',    label:'⚠️ 경고' },
+  danger: { bg:'rgba(255,71,87,.15)',   border:'var(--danger)', color:'var(--danger)',  label:'🚨 위험' },
+};
+
+function toggleAlertTarget(val) {
+  document.getElementById('alert-user-wrap').classList.toggle('hidden', val !== 'user');
+}
+
+function selectAlertType(type) {
+  curAlertType = type;
+  document.querySelectorAll('.alert-type-btn').forEach(el => {
+    const t = el.dataset.type;
+    const c = ALERT_COLORS[t];
+    if(t === type) {
+      el.style.background = c.bg;
+      el.style.borderColor = c.border;
+      el.style.color = c.color;
+    } else {
+      el.style.background = '';
+      el.style.borderColor = 'var(--border)';
+      el.style.color = 'var(--muted)';
+    }
+  });
+}
+
+function sendAlert() {
+  if(!db) return;
+  const isAll = document.querySelector('input[name="alert-target"]:checked').value === 'all';
+  const uid = document.getElementById('alert-user-sel').value;
+  const title = document.getElementById('alert-title').value.trim();
+  const msg = document.getElementById('alert-msg').value.trim();
+
+  if(!isAll && !uid) { notify('유저를 선택하세요.', 'err'); return; }
+  if(!title) { notify('제목을 입력하세요.', 'err'); return; }
+  if(!msg) { notify('내용을 입력하세요.', 'err'); return; }
+
+  const payload = { title, msg, type: curAlertType, t: Date.now(), read: false };
+
+  if(isAll) {
+    const users = Object.keys(allUsers);
+    if(!users.length) { notify('유저가 없습니다.', 'err'); return; }
+    const updates = {};
+    users.forEach(u => { updates[`notifications/${u}/${Date.now()}_${Math.random().toString(36).slice(2,6)}`] = payload; });
+    updates[`notifications/ALL/${Date.now()}`] = payload;
+    db.ref().update(updates).then(() => {
+      notify(`✅ 전체 ${users.length}명에게 알림 전송!`, 'ok');
+      document.getElementById('alert-title').value = '';
+      document.getElementById('alert-msg').value = '';
+      loadAlerts();
+    }).catch(e => notify('오류: ' + e.message, 'err'));
+  } else {
+    db.ref(`notifications/${uid}`).push(payload).then(() => {
+      notify(`✅ ${uid}에게 알림 전송!`, 'ok');
+      document.getElementById('alert-title').value = '';
+      document.getElementById('alert-msg').value = '';
+      loadAlerts();
+    }).catch(e => notify('오류: ' + e.message, 'err'));
+  }
+}
+
+function loadAlerts() {
+  if(!db) return;
+
+  const sel = document.getElementById('alert-user-sel');
+  sel.innerHTML = '<option value="">유저 선택...</option>' +
+    Object.keys(allUsers).map(id => `<option value="${id}">${id}</option>`).join('');
+
+  db.ref('notifications').once('value', snap => {
+    const data = snap.val() || {};
+    const container = document.getElementById('alert-log');
+    const rows = [];
+
+    Object.entries(data).forEach(([uid, notifs]) => {
+      Object.entries(notifs).forEach(([id, n]) => {
+        rows.push({ uid, id, ...n });
+      });
+    });
+
+    if(!rows.length) {
+      container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px">알림 기록 없음</div>';
+      return;
+    }
+
+    rows.sort((a, b) => (b.t||0) - (a.t||0));
+    const c = rows.slice(0, 50);
+
+    container.innerHTML = c.map(n => {
+      const ac = ALERT_COLORS[n.type] || ALERT_COLORS.info;
+      return `
+      <div style="display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)">
+        <span style="background:${ac.bg};color:${ac.color};border:1px solid ${ac.border};border-radius:5px;padding:2px 8px;font-size:10px;font-weight:600;white-space:nowrap">${ac.label}</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;font-weight:600">${n.title||'-'}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">${n.msg||'-'}</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:3px">→ <strong>${n.uid}</strong> · ${n.t ? new Date(n.t).toLocaleString('ko-KR') : '-'} · ${n.read ? '✅ 읽음' : '⬜ 미확인'}</div>
+        </div>
+        <button class="btn btn-d btn-sm" onclick="deleteAlert('${n.uid}','${n.id}')">삭제</button>
+      </div>`;
+    }).join('');
+  });
+}
+
+function deleteAlert(uid, id) {
+  if(!db) return;
+  db.ref(`notifications/${uid}/${id}`).remove().then(() => {
+    notify('알림 삭제 완료', 'info');
+    loadAlerts();
+  }).catch(e => notify('오류: ' + e.message, 'err'));
 }
 
 // ── Grant Log ──
