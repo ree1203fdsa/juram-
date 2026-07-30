@@ -1,0 +1,1375 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>우리들의 날 - 관리 시스템</title>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg-primary: #0f1117;
+      --bg-secondary: #1a1d27;
+      --bg-tertiary: #242838;
+      --accent: #5b6cff;
+      --accent-hover: #4a5ae8;
+      --accent-danger: #ff4757;
+      --accent-warning: #ffa502;
+      --accent-success: #2ed573;
+      --text-primary: #e8eaf6;
+      --text-secondary: #9198b0;
+      --border: #2a2d3e;
+      --card-bg: #1e2235;
+    }
+
+    body {
+      font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      width: 250px;
+      background: var(--bg-secondary);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      flex-shrink: 0;
+    }
+    .sidebar-header {
+      padding: 18px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .sidebar-header h1 { font-size: 15px; font-weight: 700; color: var(--accent); }
+    .sidebar-header p { font-size: 11px; color: var(--text-secondary); margin-top: 3px; }
+    .sidebar-section { padding: 6px 0; }
+    .sidebar-section-title {
+      padding: 8px 16px 4px;
+      font-size: 10px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 1px;
+      color: var(--text-secondary);
+    }
+    .sidebar-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 16px; cursor: pointer;
+      font-size: 13px; color: var(--text-secondary);
+      transition: all 0.15s;
+    }
+    .sidebar-item:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+    .sidebar-item.active {
+      background: rgba(91,108,255,0.15);
+      color: var(--accent);
+      border-right: 2px solid var(--accent);
+    }
+
+    /* ── Main ── */
+    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .topbar {
+      padding: 11px 24px;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .topbar h2 { font-size: 15px; font-weight: 600; }
+    .status-badge { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--accent-success); }
+    .status-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--accent-success);
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+    .content { flex: 1; overflow-y: auto; padding: 20px 24px; }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--card-bg); border: 1px solid var(--border);
+      border-radius: 10px; padding: 18px; margin-bottom: 14px;
+    }
+    .card-title { font-size: 14px; font-weight: 600; margin-bottom: 14px; }
+
+    /* ── Buttons ── */
+    .btn {
+      padding: 7px 14px; border: none; border-radius: 6px;
+      cursor: pointer; font-size: 13px; font-family: inherit;
+      font-weight: 500; transition: all 0.15s; white-space: nowrap;
+    }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-danger { background: var(--accent-danger); color: #fff; }
+    .btn-danger:hover { background: #e84050; }
+    .btn-warning { background: var(--accent-warning); color: #000; }
+    .btn-warning:hover { background: #e89600; }
+    .btn-success { background: var(--accent-success); color: #000; }
+    .btn-success:hover { background: #25c262; }
+    .btn-secondary { background: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--border); }
+    .btn-secondary:hover { background: #2f3347; }
+    .btn-sm { padding: 5px 10px; font-size: 12px; }
+
+    /* ── Inputs ── */
+    .input {
+      background: var(--bg-tertiary); border: 1px solid var(--border);
+      border-radius: 6px; padding: 7px 11px;
+      color: var(--text-primary); font-size: 13px; font-family: inherit;
+    }
+    .input:focus { outline: none; border-color: var(--accent); }
+    .input.w-full { width: 100%; }
+    .select {
+      background: var(--bg-tertiary); border: 1px solid var(--border);
+      border-radius: 6px; padding: 7px 11px;
+      color: var(--text-primary); font-size: 13px; font-family: inherit;
+    }
+
+    /* ── Table ── */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th {
+      text-align: left; padding: 9px 11px;
+      background: var(--bg-tertiary); color: var(--text-secondary);
+      font-weight: 600; font-size: 11px; text-transform: uppercase;
+      letter-spacing: 0.5px; border-bottom: 1px solid var(--border);
+    }
+    td { padding: 9px 11px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+    tr.selected td { background: rgba(91,108,255,0.08); }
+
+    /* ── Action Grid ── */
+    .action-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px,1fr)); gap: 7px; }
+    .action-btn {
+      padding: 9px 10px; border: 1px solid var(--border); border-radius: 7px;
+      background: var(--bg-tertiary); color: var(--text-primary);
+      cursor: pointer; font-size: 12px; font-family: inherit;
+      text-align: center; transition: all 0.15s;
+    }
+    .action-btn:hover { border-color: var(--accent); background: rgba(91,108,255,0.1); color: var(--accent); }
+    .action-btn.danger:hover { border-color: var(--accent-danger); background: rgba(255,71,87,0.1); color: var(--accent-danger); }
+    .action-btn.warning:hover { border-color: var(--accent-warning); background: rgba(255,165,2,0.1); color: var(--accent-warning); }
+    .action-btn.success:hover { border-color: var(--accent-success); background: rgba(46,213,115,0.1); color: var(--accent-success); }
+
+    /* ── Player Detail ── */
+    .player-detail { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .detail-group { display: flex; flex-direction: column; gap: 9px; }
+    .detail-item { display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
+    .detail-label { color: var(--text-secondary); }
+    .detail-value { font-weight: 500; }
+
+    /* ── Badges ── */
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 600; }
+    .badge-online { background: rgba(46,213,115,0.2); color: var(--accent-success); }
+    .badge-offline { background: rgba(145,152,176,0.2); color: var(--text-secondary); }
+    .badge-banned { background: rgba(255,71,87,0.2); color: var(--accent-danger); }
+
+    /* ── Map Grid ── */
+    .map-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; }
+    .map-card { background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+    .map-card h4 { font-size: 12px; color: var(--text-secondary); margin-bottom: 10px; }
+
+    /* ── Toggle ── */
+    .toggle { position: relative; display: inline-block; width: 38px; height: 21px; }
+    .toggle input { opacity:0; width:0; height:0; }
+    .toggle-slider {
+      position: absolute; cursor: pointer; inset: 0;
+      background: var(--border); border-radius: 21px; transition: 0.3s;
+    }
+    .toggle-slider:before {
+      content: ""; position: absolute;
+      height: 15px; width: 15px; left: 3px; bottom: 3px;
+      background: white; border-radius: 50%; transition: 0.3s;
+    }
+    input:checked + .toggle-slider { background: var(--accent); }
+    input:checked + .toggle-slider:before { transform: translateX(17px); }
+
+    /* ── Zone Grid ── */
+    .zone-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; }
+    .zone-cell {
+      background: var(--bg-tertiary); border: 1px solid var(--border);
+      border-radius: 6px; padding: 10px; text-align: center;
+      cursor: pointer; font-size: 12px; transition: all 0.15s;
+    }
+    .zone-cell.locked { border-color: var(--accent-danger); background: rgba(255,71,87,0.05); }
+    .zone-cell:hover { border-color: var(--accent); }
+
+    /* ── Inventory ── */
+    .inventory-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px,1fr)); gap: 8px; }
+    .inv-slot {
+      background: var(--bg-tertiary); border: 1px solid var(--border);
+      border-radius: 6px; padding: 8px; text-align: center;
+      font-size: 11px; cursor: pointer; transition: all 0.15s; position: relative;
+    }
+    .inv-slot:hover { border-color: var(--accent); }
+    .inv-slot .item-icon { font-size: 22px; margin-bottom: 3px; }
+    .inv-slot .item-name { font-size: 10px; color: var(--text-secondary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .inv-slot .item-qty { position:absolute; bottom:4px; right:6px; font-size:10px; font-weight:700; color: var(--accent); }
+    .rarity-uncommon { border-color: #2ed573 !important; }
+    .rarity-rare { border-color: #1e90ff !important; }
+    .rarity-epic { border-color: #a55eea !important; }
+    .rarity-legendary { border-color: #ffa502 !important; }
+
+    /* ── Modal ── */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 1000; backdrop-filter: blur(4px);
+    }
+    .modal {
+      background: var(--bg-secondary); border: 1px solid var(--border);
+      border-radius: 12px; padding: 22px; width: 420px;
+      max-width: 90vw; max-height: 80vh; overflow-y: auto;
+    }
+    .modal h3 { font-size: 15px; font-weight: 600; margin-bottom: 16px; }
+    .modal-footer { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; }
+    .form-group { margin-bottom: 12px; }
+    .form-label { display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 5px; font-weight: 500; }
+
+    /* ── Notification ── */
+    .notification {
+      position: fixed; top: 20px; right: 20px;
+      background: var(--card-bg); border: 1px solid var(--border);
+      border-radius: 8px; padding: 11px 15px; font-size: 13px;
+      z-index: 2000; max-width: 300px; animation: slideIn 0.3s ease;
+    }
+    .notification.success { border-left: 3px solid var(--accent-success); }
+    .notification.error { border-left: 3px solid var(--accent-danger); }
+    .notification.info { border-left: 3px solid var(--accent); }
+    @keyframes slideIn { from{transform:translateX(100%);opacity:0} to{transform:translateX(0);opacity:1} }
+
+    /* ── Log ── */
+    .log-entry { display:flex; gap:10px; padding:8px 0; border-bottom:1px solid var(--border); font-size:12px; flex-wrap:wrap; }
+    .log-time { color: var(--text-secondary); white-space:nowrap; }
+    .log-action { color: var(--accent); font-weight:600; white-space:nowrap; }
+
+    /* ── Rarity Colors ── */
+    .rc-common { color:#aaa; } .rc-uncommon { color:#2ed573; }
+    .rc-rare { color:#1e90ff; } .rc-epic { color:#a55eea; } .rc-legendary { color:#ffa502; }
+
+    /* ── Utility ── */
+    .flex { display:flex; } .gap-8 { gap:8px; } .gap-12 { gap:12px; }
+    .items-center { align-items:center; } .justify-between { justify-content:space-between; }
+    .mb-8 { margin-bottom:8px; } .mb-14 { margin-bottom:14px; }
+    .text-sm { font-size:12px; } .text-secondary { color: var(--text-secondary); }
+    .w-full { width:100%; } .divider { border:none; border-top:1px solid var(--border); margin:14px 0; }
+    .hidden { display:none !important; }
+    .page { display:none; } .page.active { display:block; }
+
+    ::-webkit-scrollbar { width:6px; height:6px; }
+    ::-webkit-scrollbar-track { background:transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius:3px; }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════ SIDEBAR ══════════════ -->
+<div class="sidebar">
+  <div class="sidebar-header">
+    <h1>🎮 우리들의 날</h1>
+    <p>게임 관리 시스템 v1.0</p>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">유저 관리</div>
+    <div class="sidebar-item active" onclick="navigate('player-list')"><span>👥</span> 플레이어 목록</div>
+    <div class="sidebar-item" onclick="navigate('player-detail')"><span>👤</span> 플레이어 정보</div>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">맵 관리</div>
+    <div class="sidebar-item" onclick="navigate('map-weather')"><span>🌤</span> 날씨 / 시간</div>
+    <div class="sidebar-item" onclick="navigate('map-zone')"><span>🗺</span> 구역 관리</div>
+    <div class="sidebar-item" onclick="navigate('map-objects')"><span>🏗</span> 오브젝트 / 차량</div>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">아이템 관리</div>
+    <div class="sidebar-item" onclick="navigate('item-list')"><span>🎒</span> 아이템 목록</div>
+    <div class="sidebar-item" onclick="navigate('item-grant-log')"><span>📋</span> 지급 로그</div>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">시스템</div>
+    <div class="sidebar-item" onclick="navigate('command-log')"><span>📡</span> 명령 로그</div>
+  </div>
+</div>
+
+<!-- ══════════════ MAIN ══════════════ -->
+<div class="main">
+  <div class="topbar">
+    <h2 id="page-title">플레이어 목록</h2>
+    <div class="status-badge">
+      <div class="status-dot" id="status-dot"></div>
+      <span id="status-text">연결 중...</span>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- ── 플레이어 목록 ── -->
+    <div class="page active" id="page-player-list">
+      <div class="card">
+        <div class="flex gap-8 mb-14">
+          <input type="text" class="input" id="player-search" placeholder="닉네임 또는 ID 검색..." oninput="filterPlayers()" style="flex:1">
+          <button class="btn btn-secondary" onclick="loadPlayers()">새로고침</button>
+          <button class="btn btn-success" onclick="openModal('add-player-modal')">+ 추가</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th><th>닉네임</th><th>레벨</th><th>직업</th>
+                <th>팀</th><th>상태</th><th>마지막 접속</th><th>액션</th>
+              </tr>
+            </thead>
+            <tbody id="player-table-body">
+              <tr><td colspan="8" style="text-align:center;color:var(--text-secondary);padding:40px">데이터 로딩 중...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 플레이어 상세 ── -->
+    <div class="page" id="page-player-detail">
+      <div id="no-player-msg" class="card" style="text-align:center;padding:60px;color:var(--text-secondary)">
+        👤 플레이어 목록에서 플레이어를 선택해주세요.
+      </div>
+      <div id="player-detail-content" class="hidden">
+        <div class="card">
+          <div class="flex justify-between items-center mb-14">
+            <div>
+              <div class="flex items-center gap-8">
+                <h3 id="pd-nickname" style="font-size:19px"></h3>
+                <span id="pd-status-badge" class="badge badge-offline">오프라인</span>
+              </div>
+              <div class="text-sm text-secondary" style="margin-top:3px">ID: <span id="pd-id"></span></div>
+            </div>
+            <button class="btn btn-secondary btn-sm" onclick="navigate('player-list')">← 목록</button>
+          </div>
+          <div class="player-detail">
+            <div class="detail-group">
+              <div class="detail-item"><span class="detail-label">레벨</span><span class="detail-value" id="pd-level">-</span></div>
+              <div class="detail-item"><span class="detail-label">경험치</span><span class="detail-value" id="pd-xp">-</span></div>
+              <div class="detail-item"><span class="detail-label">돈</span><span class="detail-value" id="pd-money">-</span></div>
+              <div class="detail-item"><span class="detail-label">체력</span><span class="detail-value" id="pd-health">-</span></div>
+              <div class="detail-item"><span class="detail-label">직업</span><span class="detail-value" id="pd-job">-</span></div>
+              <div class="detail-item"><span class="detail-label">팀</span><span class="detail-value" id="pd-team">-</span></div>
+              <div class="detail-item"><span class="detail-label">이동 속도</span><span class="detail-value" id="pd-speed">-</span></div>
+            </div>
+            <div class="detail-group">
+              <div class="detail-item"><span class="detail-label">플레이 시간</span><span class="detail-value" id="pd-playtime">-</span></div>
+              <div class="detail-item"><span class="detail-label">접속 IP</span><span class="detail-value" id="pd-ip">-</span></div>
+              <div class="detail-item"><span class="detail-label">마지막 접속</span><span class="detail-value" id="pd-last-seen">-</span></div>
+              <div class="detail-item"><span class="detail-label">경고 횟수</span><span class="detail-value" id="pd-warnings">-</span></div>
+              <div class="detail-item"><span class="detail-label">채팅 차단</span><span class="detail-value" id="pd-chat-ban">-</span></div>
+              <div class="detail-item"><span class="detail-label">음성 차단</span><span class="detail-value" id="pd-voice-ban">-</span></div>
+              <div class="detail-item"><span class="detail-label">정지</span><span class="detail-value" id="pd-ban">-</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">⚡ 플레이어 액션</div>
+
+          <div class="text-sm text-secondary mb-8">기본 관리</div>
+          <div class="action-grid mb-14">
+            <button class="action-btn" onclick="playerAction('changeNickname')">✏️ 닉네임 변경</button>
+            <button class="action-btn" onclick="playerAction('forceNickname')">🔤 강제 닉네임</button>
+            <button class="action-btn danger" onclick="playerAction('kick')">🚪 킥</button>
+            <button class="action-btn warning" onclick="playerAction('tempBan')">⏱ 일시 정지</button>
+            <button class="action-btn danger" onclick="playerAction('permBan')">🚫 영구 정지</button>
+            <button class="action-btn success" onclick="playerAction('unban')">✅ 정지 해제</button>
+            <button class="action-btn warning" onclick="playerAction('chatBan')">💬 채팅 차단</button>
+            <button class="action-btn success" onclick="playerAction('chatUnban')">💬 채팅 해제</button>
+            <button class="action-btn warning" onclick="playerAction('voiceBan')">🎙 음성 차단</button>
+            <button class="action-btn success" onclick="playerAction('voiceUnban')">🎙 음성 해제</button>
+            <button class="action-btn warning" onclick="playerAction('warn')">⚠️ 경고 지급</button>
+            <button class="action-btn" onclick="showWarnHistory()">📋 경고 기록</button>
+            <button class="action-btn" onclick="showPlayInfo()">⏱ 플레이 시간</button>
+            <button class="action-btn" onclick="showIPInfo()">🌐 IP 확인</button>
+          </div>
+
+          <hr class="divider">
+          <div class="text-sm text-secondary mb-8">스탯 관리</div>
+          <div class="action-grid mb-14">
+            <button class="action-btn success" onclick="playerAction('giveMoney')">💰 돈 지급</button>
+            <button class="action-btn danger" onclick="playerAction('takeMoney')">💸 돈 회수</button>
+            <button class="action-btn success" onclick="playerAction('giveXP')">⭐ 경험치 지급</button>
+            <button class="action-btn danger" onclick="playerAction('takeXP')">⭐ 경험치 회수</button>
+            <button class="action-btn" onclick="playerAction('setLevel')">📊 레벨 변경</button>
+            <button class="action-btn" onclick="playerAction('setJob')">🧑‍💼 직업 변경</button>
+            <button class="action-btn" onclick="playerAction('setTeam')">🏳 팀 이동</button>
+            <button class="action-btn" onclick="playerAction('setSpeed')">💨 이동 속도</button>
+          </div>
+
+          <hr class="divider">
+          <div class="text-sm text-secondary mb-8">인게임 관리</div>
+          <div class="action-grid">
+            <button class="action-btn success" onclick="playerAction('revive')">❤️ 부활</button>
+            <button class="action-btn success" onclick="playerAction('healHealth')">💊 체력 회복</button>
+            <button class="action-btn danger" onclick="playerAction('kill')">💀 사망 처리</button>
+            <button class="action-btn success" onclick="playerAction('giveItem')">🎁 아이템 지급</button>
+            <button class="action-btn danger" onclick="playerAction('removeItem')">🗑 아이템 삭제</button>
+            <button class="action-btn" onclick="showInventory()">🎒 인벤토리 보기</button>
+          </div>
+        </div>
+
+        <div class="card hidden" id="inventory-section">
+          <div class="flex justify-between items-center mb-14">
+            <div class="card-title" style="margin:0">🎒 인벤토리</div>
+            <button class="btn btn-secondary btn-sm" onclick="document.getElementById('inventory-section').classList.add('hidden')">닫기</button>
+          </div>
+          <div class="inventory-grid" id="inventory-grid"></div>
+        </div>
+
+        <div class="card hidden" id="warn-history-section">
+          <div class="flex justify-between items-center mb-14">
+            <div class="card-title" style="margin:0">⚠️ 경고 기록</div>
+            <button class="btn btn-secondary btn-sm" onclick="document.getElementById('warn-history-section').classList.add('hidden')">닫기</button>
+          </div>
+          <div id="warn-history-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 맵: 날씨/시간 ── -->
+    <div class="page" id="page-map-weather">
+      <div class="card">
+        <div class="card-title">🌤 날씨 / 시간 관리</div>
+        <div class="map-grid">
+          <div class="map-card">
+            <h4>날씨 프리셋</h4>
+            <div class="action-grid">
+              <button class="action-btn success" onclick="setWeather('clear')">☀️ 맑음</button>
+              <button class="action-btn" onclick="setWeather('cloudy')">⛅ 흐림</button>
+              <button class="action-btn" onclick="setWeather('rain')">🌧 비</button>
+              <button class="action-btn" onclick="setWeather('snow')">❄️ 눈</button>
+              <button class="action-btn danger" onclick="setWeather('storm')">⛈ 폭풍</button>
+              <button class="action-btn warning" onclick="setWeather('fog')">🌫 안개</button>
+            </div>
+          </div>
+          <div class="map-card">
+            <h4>세부 날씨 토글</h4>
+            <div style="display:flex;flex-direction:column;gap:10px;">
+              <div class="flex justify-between items-center"><span style="font-size:13px;">🌧 비</span><label class="toggle"><input type="checkbox" id="t-rain" onchange="toggleWeather('rain',this.checked)"><span class="toggle-slider"></span></label></div>
+              <div class="flex justify-between items-center"><span style="font-size:13px;">❄️ 눈</span><label class="toggle"><input type="checkbox" id="t-snow" onchange="toggleWeather('snow',this.checked)"><span class="toggle-slider"></span></label></div>
+              <div class="flex justify-between items-center"><span style="font-size:13px;">🌫 안개</span><label class="toggle"><input type="checkbox" id="t-fog" onchange="toggleWeather('fog',this.checked)"><span class="toggle-slider"></span></label></div>
+              <div class="flex justify-between items-center"><span style="font-size:13px;">⛈ 폭풍</span><label class="toggle"><input type="checkbox" id="t-storm" onchange="toggleWeather('storm',this.checked)"><span class="toggle-slider"></span></label></div>
+            </div>
+          </div>
+          <div class="map-card">
+            <h4>시간 설정</h4>
+            <div style="display:flex;flex-direction:column;gap:10px;">
+              <div class="flex justify-between items-center"><span style="font-size:13px;">낮/밤</span><label class="toggle"><input type="checkbox" id="t-day" checked onchange="toggleDaytime(this.checked)"><span class="toggle-slider"></span></label></div>
+              <button class="action-btn" onclick="setWeather('day')">☀️ 낮으로 변경</button>
+              <button class="action-btn" onclick="setWeather('night')">🌙 밤으로 변경</button>
+              <div class="flex gap-8">
+                <input type="number" class="input" id="map-time" min="0" max="24" placeholder="시간 (0~24)" style="flex:1">
+                <button class="btn btn-primary btn-sm" onclick="setMapTime()">설정</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">🔄 맵 초기화</div>
+        <div class="flex gap-8 items-center">
+          <button class="btn btn-danger" onclick="confirmMapReset()">맵 초기화 실행</button>
+          <span class="text-sm text-secondary">모든 오브젝트와 날씨 설정이 초기화됩니다.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 맵: 구역 관리 ── -->
+    <div class="page" id="page-map-zone">
+      <div class="card">
+        <div class="card-title">🗺 구역 관리</div>
+        <div class="flex gap-8 mb-14">
+          <input type="text" class="input" id="zone-name" placeholder="구역 이름 입력..." style="flex:1">
+          <button class="btn btn-danger" onclick="lockZone()">🔒 잠금</button>
+          <button class="btn btn-success" onclick="unlockZone()">🔓 개방</button>
+          <button class="btn btn-secondary" onclick="addZone()">+ 구역 추가</button>
+        </div>
+        <div class="zone-grid" id="zone-grid">
+          <div style="color:var(--text-secondary);grid-column:1/-1;padding:20px;text-align:center">구역을 추가하세요.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 맵: 오브젝트/차량 ── -->
+    <div class="page" id="page-map-objects">
+      <div class="card">
+        <div class="card-title">🏗 건물 관리</div>
+        <div class="flex gap-8 mb-14">
+          <input type="text" class="input" id="building-name" placeholder="건물 이름" style="flex:1">
+          <input type="text" class="input" id="building-pos" placeholder="좌표 (x,y,z)" style="flex:1">
+          <button class="btn btn-success" onclick="spawnBuilding()">+ 생성</button>
+          <button class="btn btn-danger" onclick="deleteBuilding()">🗑 삭제</button>
+        </div>
+        <div class="table-wrap">
+          <table><thead><tr><th>이름</th><th>위치</th><th>생성 시간</th><th>액션</th></tr></thead>
+          <tbody id="building-list"><tr><td colspan="4" style="text-align:center;color:var(--text-secondary);padding:20px">없음</td></tr></tbody></table>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">📦 오브젝트 관리</div>
+        <div class="flex gap-8 mb-14">
+          <input type="text" class="input" id="obj-type" placeholder="오브젝트 유형" style="flex:1">
+          <input type="text" class="input" id="obj-pos" placeholder="좌표 (x,y,z)" style="flex:1">
+          <button class="btn btn-success" onclick="spawnObject()">+ 생성</button>
+          <button class="btn btn-danger" onclick="deleteObject()">🗑 삭제</button>
+        </div>
+        <div class="table-wrap">
+          <table><thead><tr><th>유형</th><th>위치</th><th>생성 시간</th><th>액션</th></tr></thead>
+          <tbody id="object-list"><tr><td colspan="4" style="text-align:center;color:var(--text-secondary);padding:20px">없음</td></tr></tbody></table>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">🚗 차량 관리</div>
+        <div class="flex gap-8 mb-14">
+          <input type="text" class="input" id="vehicle-type" placeholder="차량 유형" style="flex:1">
+          <input type="text" class="input" id="vehicle-pos" placeholder="좌표 (x,y,z)" style="flex:1">
+          <button class="btn btn-success" onclick="spawnVehicle()">+ 생성</button>
+          <button class="btn btn-danger" onclick="deleteVehicle()">🗑 삭제</button>
+        </div>
+        <div class="table-wrap">
+          <table><thead><tr><th>유형</th><th>위치</th><th>생성 시간</th><th>액션</th></tr></thead>
+          <tbody id="vehicle-list"><tr><td colspan="4" style="text-align:center;color:var(--text-secondary);padding:20px">없음</td></tr></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 아이템 목록 ── -->
+    <div class="page" id="page-item-list">
+      <div class="card">
+        <div class="flex justify-between items-center mb-14">
+          <div class="card-title" style="margin:0">🎒 아이템 목록</div>
+          <button class="btn btn-success btn-sm" onclick="openModal('item-create-modal')">+ 아이템 생성</button>
+        </div>
+        <div class="flex gap-8 mb-14">
+          <input type="text" class="input" id="item-search" placeholder="아이템 검색..." oninput="filterItems()" style="flex:1">
+          <select class="select" id="item-rarity-filter" onchange="filterItems()">
+            <option value="">전체 희귀도</option>
+            <option value="common">일반</option>
+            <option value="uncommon">고급</option>
+            <option value="rare">희귀</option>
+            <option value="epic">영웅</option>
+            <option value="legendary">전설</option>
+          </select>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>ID</th><th>이름</th><th>희귀도</th><th>가격</th><th>드롭률</th><th>내구도</th><th>강화</th><th>액션</th></tr></thead>
+            <tbody id="item-table-body"><tr><td colspan="8" style="text-align:center;color:var(--text-secondary);padding:40px">로딩 중...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 지급 로그 ── -->
+    <div class="page" id="page-item-grant-log">
+      <div class="card">
+        <div class="card-title">📋 아이템 지급 로그</div>
+        <div id="grant-log-list"><div style="text-align:center;color:var(--text-secondary);padding:40px">로딩 중...</div></div>
+      </div>
+    </div>
+
+    <!-- ── 명령 로그 ── -->
+    <div class="page" id="page-command-log">
+      <div class="card">
+        <div class="flex justify-between items-center mb-14">
+          <div class="card-title" style="margin:0">📡 명령 로그</div>
+          <button class="btn btn-secondary btn-sm" onclick="commandLog=[];renderCommandLog()">초기화</button>
+        </div>
+        <div id="command-log-list"><div style="text-align:center;color:var(--text-secondary);padding:40px">명령을 실행하면 여기에 기록됩니다.</div></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════ MODALS ══════════════ -->
+
+<!-- 플레이어 액션 모달 -->
+<div id="action-modal" class="modal-overlay hidden">
+  <div class="modal">
+    <h3 id="modal-title">액션</h3>
+    <div id="modal-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('action-modal')">취소</button>
+      <button class="btn btn-primary" id="modal-confirm-btn" onclick="confirmAction()">실행</button>
+    </div>
+  </div>
+</div>
+
+<!-- 플레이어 추가 모달 -->
+<div id="add-player-modal" class="modal-overlay hidden">
+  <div class="modal">
+    <h3>플레이어 추가</h3>
+    <div class="form-group">
+      <label class="form-label">플레이어 ID</label>
+      <input type="text" class="input w-full" id="new-pid" placeholder="player_001">
+    </div>
+    <div class="form-group">
+      <label class="form-label">닉네임</label>
+      <input type="text" class="input w-full" id="new-pnick" placeholder="닉네임">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('add-player-modal')">취소</button>
+      <button class="btn btn-success" onclick="addPlayer()">추가</button>
+    </div>
+  </div>
+</div>
+
+<!-- 아이템 생성 모달 -->
+<div id="item-create-modal" class="modal-overlay hidden">
+  <div class="modal">
+    <h3>아이템 생성</h3>
+    <div class="form-group"><label class="form-label">아이템 ID</label><input type="text" class="input w-full" id="ni-id" placeholder="item_sword_001"></div>
+    <div class="form-group"><label class="form-label">이름</label><input type="text" class="input w-full" id="ni-name" placeholder="강철 검"></div>
+    <div class="form-group"><label class="form-label">희귀도</label>
+      <select class="select w-full" id="ni-rarity">
+        <option value="common">일반</option><option value="uncommon">고급</option>
+        <option value="rare">희귀</option><option value="epic">영웅</option><option value="legendary">전설</option>
+      </select>
+    </div>
+    <div class="form-group"><label class="form-label">상점 가격</label><input type="number" class="input w-full" id="ni-price" placeholder="1000"></div>
+    <div class="form-group"><label class="form-label">드롭률 (0.0~1.0)</label><input type="number" class="input w-full" id="ni-drop" placeholder="0.1" step="0.01" min="0" max="1"></div>
+    <div class="form-group"><label class="form-label">내구도</label><input type="number" class="input w-full" id="ni-dur" placeholder="100"></div>
+    <div class="form-group"><label class="form-label">아이콘 이모지</label><input type="text" class="input w-full" id="ni-icon" placeholder="⚔️"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('item-create-modal')">취소</button>
+      <button class="btn btn-success" onclick="createItem()">생성</button>
+    </div>
+  </div>
+</div>
+
+<!-- 아이템 편집 모달 -->
+<div id="item-edit-modal" class="modal-overlay hidden">
+  <div class="modal">
+    <h3>아이템 편집</h3>
+    <input type="hidden" id="ei-id">
+    <div class="form-group"><label class="form-label">희귀도</label>
+      <select class="select w-full" id="ei-rarity">
+        <option value="common">일반</option><option value="uncommon">고급</option>
+        <option value="rare">희귀</option><option value="epic">영웅</option><option value="legendary">전설</option>
+      </select>
+    </div>
+    <div class="form-group"><label class="form-label">상점 가격</label><input type="number" class="input w-full" id="ei-price"></div>
+    <div class="form-group"><label class="form-label">드롭률 (0.0~1.0)</label><input type="number" class="input w-full" id="ei-drop" step="0.01" min="0" max="1"></div>
+    <div class="form-group"><label class="form-label">내구도</label><input type="number" class="input w-full" id="ei-dur"></div>
+    <div class="form-group"><label class="form-label">강화 단계</label><input type="number" class="input w-full" id="ei-enhance" min="0" max="20"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('item-edit-modal')">취소</button>
+      <button class="btn btn-primary" onclick="saveItemEdit()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ SCRIPT ══════════════ -->
+<script>
+// ── Firebase Init ──
+const firebaseConfig = {
+  databaseURL: "https://our-nation-22b63-default-rtdb.asia-southeast1.firebasedatabase.app"
+};
+
+let db = null;
+try {
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.database();
+  db.ref('.info/connected').on('value', snap => setStatus(snap.val() === true));
+} catch(e) {
+  setStatus(false);
+}
+
+function setStatus(ok) {
+  const dot = document.getElementById('status-dot');
+  const txt = document.getElementById('status-text');
+  if(ok) {
+    dot.style.background = 'var(--accent-success)';
+    txt.style.color = 'var(--accent-success)';
+    txt.textContent = 'Firebase 연결됨';
+  } else {
+    dot.style.background = 'var(--accent-danger)';
+    txt.style.color = 'var(--accent-danger)';
+    txt.textContent = '연결 실패';
+  }
+}
+
+// ── State ──
+let allPlayers = {};
+let allItems = {};
+let selectedPlayerId = null;
+let currentAction = null;
+let commandLog = [];
+
+const PAGE_TITLES = {
+  'player-list': '플레이어 목록',
+  'player-detail': '플레이어 정보',
+  'map-weather': '날씨 / 시간 관리',
+  'map-zone': '구역 관리',
+  'map-objects': '오브젝트 / 차량 관리',
+  'item-list': '아이템 목록',
+  'item-grant-log': '아이템 지급 로그',
+  'command-log': '명령 로그',
+};
+
+// ── Navigation ──
+function navigate(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById(`page-${page}`).classList.add('active');
+  document.getElementById('page-title').textContent = PAGE_TITLES[page] || page;
+
+  document.querySelectorAll('.sidebar-item').forEach(el => {
+    el.classList.toggle('active', (el.getAttribute('onclick') || '').includes(`'${page}'`));
+  });
+
+  if(page === 'player-list') loadPlayers();
+  if(page === 'map-zone') loadZones();
+  if(page === 'map-objects') loadMapObjects();
+  if(page === 'map-weather') loadMapState();
+  if(page === 'item-list') loadItems();
+  if(page === 'item-grant-log') loadGrantLog();
+  if(page === 'command-log') renderCommandLog();
+}
+
+// ── Notify ──
+function notify(msg, type = 'info') {
+  const n = document.createElement('div');
+  n.className = `notification ${type}`;
+  n.textContent = msg;
+  document.body.appendChild(n);
+  setTimeout(() => n.remove(), 3500);
+}
+
+// ── Firebase Command ──
+function sendCommand(type, params = {}) {
+  if(!db) { notify('Firebase에 연결되어 있지 않습니다.', 'error'); return Promise.reject(); }
+  const ts = Date.now();
+  const cmd = { type, params, timestamp: ts, status: 'pending', admin: 'admin' };
+  return db.ref(`commands/${ts}`).set(cmd).then(() => {
+    commandLog.unshift(cmd);
+    if(commandLog.length > 200) commandLog.pop();
+    notify(`명령 전송: ${type}`, 'success');
+  }).catch(err => {
+    notify(`오류: ${err.message}`, 'error');
+    throw err;
+  });
+}
+
+// ── Players ──
+function loadPlayers() {
+  if(!db) return;
+  db.ref('players').on('value', snap => {
+    allPlayers = snap.val() || {};
+    renderPlayerTable(allPlayers);
+  });
+}
+
+function filterPlayers() {
+  const q = document.getElementById('player-search').value.toLowerCase();
+  const res = {};
+  Object.entries(allPlayers).forEach(([id, p]) => {
+    if(id.toLowerCase().includes(q) || (p.nickname||'').toLowerCase().includes(q)) res[id] = p;
+  });
+  renderPlayerTable(res);
+}
+
+function renderPlayerTable(players) {
+  const tbody = document.getElementById('player-table-body');
+  const entries = Object.entries(players);
+  if(!entries.length) {
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--text-secondary);padding:40px">플레이어 없음</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = entries.map(([id, p]) => {
+    const st = p.status || {};
+    const stats = p.stats || {};
+    const lastSeen = stats.lastSeen ? new Date(stats.lastSeen).toLocaleDateString('ko-KR') : '-';
+    let bc = 'badge-offline', bt = '오프라인';
+    if(st.isBanned) { bc = 'badge-banned'; bt = '정지'; }
+    else if(p.online) { bc = 'badge-online'; bt = '온라인'; }
+    return `<tr onclick="selectPlayer('${id}')" style="cursor:pointer">
+      <td><code style="font-size:11px">${id}</code></td>
+      <td><strong>${p.nickname||'-'}</strong></td>
+      <td>${p.level||1}</td>
+      <td>${p.job||'-'}</td>
+      <td>${p.team||'-'}</td>
+      <td><span class="badge ${bc}">${bt}</span></td>
+      <td>${lastSeen}</td>
+      <td><button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();viewPlayer('${id}')">상세보기</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function selectPlayer(id) {
+  selectedPlayerId = id;
+  document.querySelectorAll('#player-table-body tr').forEach(tr => tr.classList.remove('selected'));
+  event.currentTarget.classList.add('selected');
+}
+
+function viewPlayer(id) {
+  selectedPlayerId = id;
+  navigate('player-detail');
+  if(allPlayers[id]) { renderPlayerDetail(id, allPlayers[id]); return; }
+  db && db.ref(`players/${id}`).once('value', snap => {
+    const d = snap.val();
+    if(d) { allPlayers[id] = d; renderPlayerDetail(id, d); }
+    else notify('플레이어를 찾을 수 없습니다.', 'error');
+  });
+}
+
+function renderPlayerDetail(id, p) {
+  document.getElementById('no-player-msg').classList.add('hidden');
+  document.getElementById('player-detail-content').classList.remove('hidden');
+  const st = p.status || {};
+  const stats = p.stats || {};
+
+  document.getElementById('pd-id').textContent = id;
+  document.getElementById('pd-nickname').textContent = p.nickname || '-';
+  document.getElementById('pd-level').textContent = p.level || 1;
+  document.getElementById('pd-xp').textContent = (p.xp||0).toLocaleString();
+  document.getElementById('pd-money').textContent = '₩' + (p.money||0).toLocaleString();
+  document.getElementById('pd-health').textContent = `${p.health||100} / 100`;
+  document.getElementById('pd-job').textContent = p.job || '-';
+  document.getElementById('pd-team').textContent = p.team || '-';
+  document.getElementById('pd-speed').textContent = (p.speed||1.0).toFixed(1) + 'x';
+  document.getElementById('pd-playtime').textContent = fmtTime(stats.playTime||0);
+  document.getElementById('pd-ip').textContent = stats.ip || '-';
+  document.getElementById('pd-last-seen').textContent = stats.lastSeen ? new Date(stats.lastSeen).toLocaleString('ko-KR') : '-';
+  document.getElementById('pd-warnings').textContent = (st.warnings||[]).length + '회';
+  document.getElementById('pd-chat-ban').textContent = st.isChatBanned ? '🚫 차단됨' : '✅ 정상';
+  document.getElementById('pd-voice-ban').textContent = st.isVoiceBanned ? '🚫 차단됨' : '✅ 정상';
+  let banTxt = '✅ 정상';
+  if(st.isBanned) banTxt = st.banExpiry ? `🚫 정지 (${new Date(st.banExpiry).toLocaleDateString('ko-KR')}까지)` : '🚫 영구 정지';
+  document.getElementById('pd-ban').textContent = banTxt;
+
+  const badge = document.getElementById('pd-status-badge');
+  if(st.isBanned) { badge.className = 'badge badge-banned'; badge.textContent = '정지'; }
+  else if(p.online) { badge.className = 'badge badge-online'; badge.textContent = '온라인'; }
+  else { badge.className = 'badge badge-offline'; badge.textContent = '오프라인'; }
+}
+
+function fmtTime(min) {
+  if(!min) return '0분';
+  const h = Math.floor(min/60), m = min%60;
+  return h > 0 ? `${h}시간 ${m}분` : `${m}분`;
+}
+
+function showPlayInfo() {
+  const p = allPlayers[selectedPlayerId] || {};
+  notify(`플레이 시간: ${fmtTime((p.stats||{}).playTime||0)}`, 'info');
+}
+
+function showIPInfo() {
+  const p = allPlayers[selectedPlayerId] || {};
+  notify(`접속 IP: ${(p.stats||{}).ip||'알 수 없음'}`, 'info');
+}
+
+function showWarnHistory() {
+  if(!selectedPlayerId) return;
+  const p = allPlayers[selectedPlayerId] || {};
+  const warns = (p.status||{}).warnings || [];
+  const section = document.getElementById('warn-history-section');
+  const list = document.getElementById('warn-history-list');
+  list.innerHTML = warns.length
+    ? warns.slice().reverse().map(w => `<div class="log-entry"><span class="log-time">${new Date(w.timestamp).toLocaleString('ko-KR')}</span><span>${w.reason||'사유 없음'}</span><span class="text-secondary">by ${w.admin||'admin'}</span></div>`).join('')
+    : '<div style="color:var(--text-secondary);padding:20px;text-align:center">경고 기록 없음</div>';
+  section.classList.remove('hidden');
+  section.scrollIntoView({ behavior: 'smooth' });
+}
+
+function showInventory() {
+  if(!selectedPlayerId) return;
+  const p = allPlayers[selectedPlayerId] || {};
+  const inv = p.inventory || {};
+  const grid = document.getElementById('inventory-grid');
+  const items = Object.entries(inv);
+  grid.innerHTML = items.length
+    ? items.map(([iid, item]) => `<div class="inv-slot rarity-${item.rarity||'common'}" title="${item.name||iid}"><div class="item-icon">${item.icon||'📦'}</div><div class="item-name">${item.name||iid}</div><span class="item-qty">x${item.qty||1}</span></div>`).join('')
+    : '<div style="color:var(--text-secondary);padding:20px">인벤토리가 비어있습니다.</div>';
+  document.getElementById('inventory-section').classList.remove('hidden');
+  document.getElementById('inventory-section').scrollIntoView({ behavior: 'smooth' });
+}
+
+// ── Player Actions ──
+const ACTION_DEF = {
+  changeNickname: { title:'닉네임 변경', btn:'btn-primary', fields:[{id:'nickname',label:'새 닉네임',type:'text',ph:'새 닉네임'}] },
+  forceNickname:  { title:'강제 닉네임 변경', btn:'btn-warning', fields:[{id:'nickname',label:'강제 닉네임',type:'text',ph:'닉네임'},{id:'reason',label:'사유',type:'text',ph:'사유'}] },
+  kick:           { title:'킥 (강제 퇴장)', btn:'btn-danger', fields:[{id:'reason',label:'사유',type:'text',ph:'킥 사유'}] },
+  tempBan:        { title:'일시 정지', btn:'btn-warning', fields:[{id:'duration',label:'시간(시간 단위)',type:'number',ph:'예: 24'},{id:'reason',label:'사유',type:'text',ph:'사유'}] },
+  permBan:        { title:'영구 정지', btn:'btn-danger', fields:[{id:'reason',label:'사유',type:'text',ph:'사유'}] },
+  unban:          { title:'정지 해제', btn:'btn-success', fields:[], confirm:true },
+  chatBan:        { title:'채팅 차단', btn:'btn-warning', fields:[{id:'reason',label:'사유',type:'text',ph:'사유'}] },
+  chatUnban:      { title:'채팅 차단 해제', btn:'btn-success', fields:[], confirm:true },
+  voiceBan:       { title:'음성 채팅 차단', btn:'btn-warning', fields:[{id:'reason',label:'사유',type:'text',ph:'사유'}] },
+  voiceUnban:     { title:'음성 차단 해제', btn:'btn-success', fields:[], confirm:true },
+  warn:           { title:'경고 지급', btn:'btn-warning', fields:[{id:'reason',label:'경고 사유',type:'text',ph:'사유'}] },
+  giveMoney:      { title:'돈 지급', btn:'btn-success', fields:[{id:'amount',label:'금액',type:'number',ph:'지급할 금액'}] },
+  takeMoney:      { title:'돈 회수', btn:'btn-danger', fields:[{id:'amount',label:'금액',type:'number',ph:'회수할 금액'}] },
+  giveXP:         { title:'경험치 지급', btn:'btn-success', fields:[{id:'amount',label:'경험치',type:'number',ph:'지급량'}] },
+  takeXP:         { title:'경험치 회수', btn:'btn-danger', fields:[{id:'amount',label:'경험치',type:'number',ph:'회수량'}] },
+  setLevel:       { title:'레벨 변경', btn:'btn-primary', fields:[{id:'level',label:'레벨',type:'number',ph:'1~99'}] },
+  setJob:         { title:'직업 변경', btn:'btn-primary', fields:[{id:'job',label:'직업명',type:'text',ph:'경찰, 의사, 마피아 등'}] },
+  setTeam:        { title:'팀 이동', btn:'btn-primary', fields:[{id:'team',label:'팀명',type:'text',ph:'팀A, 팀B 등'}] },
+  setSpeed:       { title:'이동 속도 변경', btn:'btn-primary', fields:[{id:'speed',label:'속도 배율',type:'number',ph:'기본값: 1.0'}] },
+  revive:         { title:'부활', btn:'btn-success', fields:[], confirm:true },
+  healHealth:     { title:'체력 회복', btn:'btn-success', fields:[{id:'amount',label:'회복량',type:'number',ph:'1~100'}] },
+  kill:           { title:'사망 처리', btn:'btn-danger', fields:[{id:'reason',label:'사유',type:'text',ph:'사유'}] },
+  giveItem:       { title:'아이템 지급', btn:'btn-success', fields:[{id:'itemId',label:'아이템 ID',type:'text',ph:'item_001'},{id:'qty',label:'수량',type:'number',ph:'1'}] },
+  removeItem:     { title:'아이템 삭제', btn:'btn-danger', fields:[{id:'itemId',label:'아이템 ID',type:'text',ph:'item_001'},{id:'qty',label:'수량',type:'number',ph:'1'}] },
+};
+
+function playerAction(action) {
+  if(!selectedPlayerId) { notify('플레이어를 먼저 선택해주세요.', 'error'); return; }
+  const def = ACTION_DEF[action];
+  if(!def) return;
+  currentAction = action;
+
+  document.getElementById('modal-title').textContent = `${def.title} — ${allPlayers[selectedPlayerId]?.nickname || selectedPlayerId}`;
+
+  let body = '';
+  if(def.confirm && !def.fields.length) {
+    body = `<p style="color:var(--text-secondary)"><strong>${allPlayers[selectedPlayerId]?.nickname||selectedPlayerId}</strong> 에게 <strong>${def.title}</strong>을(를) 실행합니다.</p>`;
+  } else {
+    body = def.fields.map(f => `<div class="form-group"><label class="form-label">${f.label}</label><input type="${f.type}" class="input w-full" id="mf-${f.id}" placeholder="${f.ph||''}"></div>`).join('');
+  }
+
+  document.getElementById('modal-body').innerHTML = body;
+  const btn = document.getElementById('modal-confirm-btn');
+  btn.className = `btn ${def.btn}`;
+  btn.textContent = '실행';
+  openModal('action-modal');
+}
+
+function confirmAction() {
+  if(!currentAction || !selectedPlayerId) return;
+  const def = ACTION_DEF[currentAction];
+  const params = { playerId: selectedPlayerId };
+  def.fields.forEach(f => {
+    const el = document.getElementById(`mf-${f.id}`);
+    if(el) params[f.id] = f.type === 'number' ? Number(el.value) : el.value;
+  });
+
+  const pid = selectedPlayerId;
+  const p = allPlayers[pid] || {};
+  const st = p.status || {};
+
+  // Apply direct DB changes where needed
+  if(currentAction === 'tempBan') {
+    const expiry = Date.now() + params.duration * 3600000;
+    db && db.ref(`players/${pid}/status`).update({ isBanned: true, banExpiry: expiry });
+  } else if(currentAction === 'permBan') {
+    db && db.ref(`players/${pid}/status`).update({ isBanned: true, banExpiry: null });
+  } else if(currentAction === 'unban') {
+    db && db.ref(`players/${pid}/status`).update({ isBanned: false, banExpiry: null });
+  } else if(currentAction === 'chatBan') {
+    db && db.ref(`players/${pid}/status/isChatBanned`).set(true);
+  } else if(currentAction === 'chatUnban') {
+    db && db.ref(`players/${pid}/status/isChatBanned`).set(false);
+  } else if(currentAction === 'voiceBan') {
+    db && db.ref(`players/${pid}/status/isVoiceBanned`).set(true);
+  } else if(currentAction === 'voiceUnban') {
+    db && db.ref(`players/${pid}/status/isVoiceBanned`).set(false);
+  } else if(currentAction === 'warn') {
+    const warns = [...(st.warnings||[]), { reason: params.reason, timestamp: Date.now(), admin: 'admin' }];
+    db && db.ref(`players/${pid}/status/warnings`).set(warns);
+  } else if(currentAction === 'giveMoney') {
+    db && db.ref(`players/${pid}/money`).set((p.money||0) + params.amount);
+  } else if(currentAction === 'takeMoney') {
+    db && db.ref(`players/${pid}/money`).set(Math.max(0, (p.money||0) - params.amount));
+  } else if(currentAction === 'giveXP') {
+    db && db.ref(`players/${pid}/xp`).set((p.xp||0) + params.amount);
+  } else if(currentAction === 'takeXP') {
+    db && db.ref(`players/${pid}/xp`).set(Math.max(0, (p.xp||0) - params.amount));
+  } else if(currentAction === 'setLevel') {
+    db && db.ref(`players/${pid}/level`).set(params.level);
+  } else if(currentAction === 'setJob') {
+    db && db.ref(`players/${pid}/job`).set(params.job);
+  } else if(currentAction === 'setTeam') {
+    db && db.ref(`players/${pid}/team`).set(params.team);
+  } else if(currentAction === 'setSpeed') {
+    db && db.ref(`players/${pid}/speed`).set(params.speed);
+  } else if(currentAction === 'healHealth') {
+    db && db.ref(`players/${pid}/health`).set(Math.min(100, (p.health||0) + params.amount));
+  } else if(currentAction === 'giveItem') {
+    db && db.ref(`logs/item_grants/${Date.now()}`).set({ playerId: pid, itemId: params.itemId, qty: params.qty, timestamp: Date.now(), admin: 'admin' });
+  } else if(currentAction === 'changeNickname') {
+    db && db.ref(`players/${pid}/nickname`).set(params.nickname);
+  } else if(currentAction === 'forceNickname') {
+    db && db.ref(`players/${pid}/nickname`).set(params.nickname);
+  }
+
+  sendCommand(currentAction, params).then(() => {
+    setTimeout(() => {
+      db && db.ref(`players/${pid}`).once('value', snap => {
+        const d = snap.val();
+        if(d) { allPlayers[pid] = d; if(selectedPlayerId === pid) renderPlayerDetail(pid, d); }
+      });
+    }, 600);
+  });
+
+  closeModal('action-modal');
+  currentAction = null;
+}
+
+// ── Add Player ──
+function addPlayer() {
+  const id = document.getElementById('new-pid').value.trim();
+  const nick = document.getElementById('new-pnick').value.trim();
+  if(!id || !nick) { notify('ID와 닉네임을 입력해주세요.', 'error'); return; }
+  const data = {
+    nickname: nick, level: 1, xp: 0, money: 0, health: 100, speed: 1.0,
+    job: '무직', team: '없음', online: false, inventory: {},
+    status: { isBanned: false, isChatBanned: false, isVoiceBanned: false, warnings: [] },
+    stats: { playTime: 0, lastSeen: Date.now(), ip: '0.0.0.0' }
+  };
+  db && db.ref(`players/${id}`).set(data).then(() => {
+    notify(`플레이어 추가: ${nick}`, 'success');
+    closeModal('add-player-modal');
+  });
+}
+
+// ── Map ──
+function loadMapState() {
+  if(!db) return;
+  db.ref('map').once('value', snap => {
+    const m = snap.val() || {};
+    ['rain','snow','fog','storm'].forEach(k => {
+      const el = document.getElementById(`t-${k}`);
+      if(el) el.checked = !!m[k];
+    });
+    const day = document.getElementById('t-day');
+    if(day) day.checked = m.isDaytime !== false;
+    if(m.time !== undefined) {
+      const el = document.getElementById('map-time');
+      if(el) el.value = m.time;
+    }
+  });
+}
+
+const WEATHER_PRESETS = {
+  clear:  { weather:'clear',  rain:false, snow:false, fog:false, storm:false },
+  cloudy: { weather:'cloudy', rain:false, snow:false, fog:false, storm:false },
+  rain:   { weather:'rain',   rain:true,  snow:false, fog:false, storm:false },
+  snow:   { weather:'snow',   rain:false, snow:true,  fog:false, storm:false },
+  storm:  { weather:'storm',  rain:true,  snow:false, fog:false, storm:true },
+  fog:    { weather:'fog',    rain:false, snow:false, fog:true,  storm:false },
+  day:    { isDaytime:true,  time:12 },
+  night:  { isDaytime:false, time:0 },
+};
+
+function setWeather(type) {
+  const data = WEATHER_PRESETS[type];
+  if(!data) return;
+  db && db.ref('map').update(data);
+  sendCommand('setWeather', { type });
+  notify(`날씨 변경: ${type}`, 'success');
+}
+
+function toggleWeather(type, val) {
+  db && db.ref('map').update({ [type]: val });
+  sendCommand('toggleWeather', { type, value: val });
+}
+
+function toggleDaytime(isDay) {
+  db && db.ref('map').update({ isDaytime: isDay });
+  sendCommand('setDaytime', { isDaytime: isDay });
+}
+
+function setMapTime() {
+  const t = Number(document.getElementById('map-time').value);
+  if(isNaN(t) || t < 0 || t > 24) { notify('0~24 사이 값을 입력해주세요.', 'error'); return; }
+  db && db.ref('map/time').set(t);
+  sendCommand('setTime', { time: t });
+}
+
+function confirmMapReset() {
+  if(!confirm('정말 맵을 초기화하시겠습니까? 모든 오브젝트가 삭제됩니다.')) return;
+  const reset = { weather:'clear', time:12, isDaytime:true, rain:false, snow:false, fog:false, storm:false, zones:{}, buildings:{}, objects:{}, vehicles:{} };
+  db && db.ref('map').set(reset);
+  sendCommand('resetMap', {});
+  notify('맵이 초기화되었습니다.', 'info');
+}
+
+// ── Zones ──
+function loadZones() {
+  if(!db) return;
+  db.ref('map/zones').on('value', snap => renderZones(snap.val() || {}));
+}
+
+function renderZones(zones) {
+  const grid = document.getElementById('zone-grid');
+  const entries = Object.entries(zones);
+  if(!entries.length) { grid.innerHTML = '<div style="color:var(--text-secondary);grid-column:1/-1;padding:20px;text-align:center">구역을 추가하세요.</div>'; return; }
+  grid.innerHTML = entries.map(([name, z]) => `
+    <div class="zone-cell ${z.locked?'locked':''}" onclick="toggleZone('${name}',${z.locked})">
+      <div style="font-size:18px;margin-bottom:4px">${z.locked?'🔒':'🔓'}</div>
+      <div style="font-weight:600">${name}</div>
+      <div style="font-size:10px;color:${z.locked?'var(--accent-danger)':'var(--accent-success)'}">${z.locked?'잠금':'개방'}</div>
+    </div>
+  `).join('');
+}
+
+function addZone() {
+  const name = document.getElementById('zone-name').value.trim();
+  if(!name) { notify('구역 이름을 입력해주세요.', 'error'); return; }
+  db && db.ref(`map/zones/${name}`).set({ locked: false });
+  document.getElementById('zone-name').value = '';
+  notify(`구역 추가: ${name}`, 'success');
+}
+
+function toggleZone(name, locked) {
+  db && db.ref(`map/zones/${name}/locked`).set(!locked);
+  sendCommand(!locked ? 'lockZone' : 'unlockZone', { zone: name });
+}
+
+function lockZone() {
+  const name = document.getElementById('zone-name').value.trim();
+  if(!name) { notify('구역 이름을 입력해주세요.', 'error'); return; }
+  db && db.ref(`map/zones/${name}`).set({ locked: true });
+  sendCommand('lockZone', { zone: name });
+}
+
+function unlockZone() {
+  const name = document.getElementById('zone-name').value.trim();
+  if(!name) { notify('구역 이름을 입력해주세요.', 'error'); return; }
+  db && db.ref(`map/zones/${name}`).set({ locked: false });
+  sendCommand('unlockZone', { zone: name });
+}
+
+// ── Map Objects ──
+function loadMapObjects() {
+  if(!db) return;
+  db.ref('map/buildings').on('value', snap => renderObjectTable('building-list', snap.val()||{}, ['이름','name'], deleteBuildingById));
+  db.ref('map/objects').on('value', snap => renderObjectTable('object-list', snap.val()||{}, ['유형','type'], deleteObjectById));
+  db.ref('map/vehicles').on('value', snap => renderObjectTable('vehicle-list', snap.val()||{}, ['유형','type'], deleteVehicleById));
+}
+
+function renderObjectTable(tbodyId, data, [label, key], delFn) {
+  const tbody = document.getElementById(tbodyId);
+  const entries = Object.entries(data);
+  if(!entries.length) { tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--text-secondary);padding:20px">없음</td></tr>`; return; }
+  tbody.innerHTML = entries.map(([id, o]) => `<tr>
+    <td>${o[key]||id}</td><td><code>${o.position||'-'}</code></td>
+    <td>${o.created ? new Date(o.created).toLocaleDateString('ko-KR') : '-'}</td>
+    <td><button class="btn btn-danger btn-sm" onclick="${delFn.name}('${id}')">삭제</button></td>
+  </tr>`).join('');
+}
+
+function spawnBuilding() {
+  const name = document.getElementById('building-name').value.trim();
+  const pos = document.getElementById('building-pos').value.trim();
+  if(!name||!pos) { notify('이름과 좌표를 입력해주세요.', 'error'); return; }
+  const id = `b_${Date.now()}`;
+  db && db.ref(`map/buildings/${id}`).set({ name, position: pos, created: Date.now() });
+  sendCommand('spawnBuilding', { id, name, position: pos });
+  document.getElementById('building-name').value = '';
+  document.getElementById('building-pos').value = '';
+}
+function deleteBuilding() {
+  const name = document.getElementById('building-name').value.trim();
+  if(!name) { notify('이름을 입력해주세요.', 'error'); return; }
+  sendCommand('deleteBuilding', { name });
+}
+function deleteBuildingById(id) {
+  if(!confirm('건물을 삭제할까요?')) return;
+  db && db.ref(`map/buildings/${id}`).remove();
+  sendCommand('deleteBuildingById', { id });
+}
+
+function spawnObject() {
+  const type = document.getElementById('obj-type').value.trim();
+  const pos = document.getElementById('obj-pos').value.trim();
+  if(!type||!pos) { notify('유형과 좌표를 입력해주세요.', 'error'); return; }
+  const id = `o_${Date.now()}`;
+  db && db.ref(`map/objects/${id}`).set({ type, position: pos, created: Date.now() });
+  sendCommand('spawnObject', { id, type, position: pos });
+  document.getElementById('obj-type').value = '';
+  document.getElementById('obj-pos').value = '';
+}
+function deleteObject() {
+  const type = document.getElementById('obj-type').value.trim();
+  if(!type) { notify('유형을 입력해주세요.', 'error'); return; }
+  sendCommand('deleteObject', { type });
+}
+function deleteObjectById(id) {
+  if(!confirm('오브젝트를 삭제할까요?')) return;
+  db && db.ref(`map/objects/${id}`).remove();
+  sendCommand('deleteObjectById', { id });
+}
+
+function spawnVehicle() {
+  const type = document.getElementById('vehicle-type').value.trim();
+  const pos = document.getElementById('vehicle-pos').value.trim();
+  if(!type||!pos) { notify('유형과 좌표를 입력해주세요.', 'error'); return; }
+  const id = `v_${Date.now()}`;
+  db && db.ref(`map/vehicles/${id}`).set({ type, position: pos, created: Date.now() });
+  sendCommand('spawnVehicle', { id, type, position: pos });
+  document.getElementById('vehicle-type').value = '';
+  document.getElementById('vehicle-pos').value = '';
+}
+function deleteVehicle() {
+  const type = document.getElementById('vehicle-type').value.trim();
+  if(!type) { notify('유형을 입력해주세요.', 'error'); return; }
+  sendCommand('deleteVehicle', { type });
+}
+function deleteVehicleById(id) {
+  if(!confirm('차량을 삭제할까요?')) return;
+  db && db.ref(`map/vehicles/${id}`).remove();
+  sendCommand('deleteVehicleById', { id });
+}
+
+// ── Items ──
+const RARITY_LABEL = { common:'일반', uncommon:'고급', rare:'희귀', epic:'영웅', legendary:'전설' };
+const RARITY_COLOR = { common:'#aaa', uncommon:'#2ed573', rare:'#1e90ff', epic:'#a55eea', legendary:'#ffa502' };
+
+function loadItems() {
+  if(!db) return;
+  db.ref('items').on('value', snap => { allItems = snap.val()||{}; renderItemTable(allItems); });
+}
+
+function filterItems() {
+  const q = document.getElementById('item-search').value.toLowerCase();
+  const r = document.getElementById('item-rarity-filter').value;
+  const res = {};
+  Object.entries(allItems).forEach(([id, item]) => {
+    if((id.toLowerCase().includes(q)||(item.name||'').toLowerCase().includes(q)) && (!r||item.rarity===r)) res[id] = item;
+  });
+  renderItemTable(res);
+}
+
+function renderItemTable(items) {
+  const tbody = document.getElementById('item-table-body');
+  const entries = Object.entries(items);
+  if(!entries.length) { tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--text-secondary);padding:40px">아이템 없음</td></tr>`; return; }
+  tbody.innerHTML = entries.map(([id, item]) => {
+    const r = item.rarity||'common';
+    return `<tr>
+      <td><code style="font-size:11px">${id}</code></td>
+      <td>${item.icon||'📦'} ${item.name||'-'}</td>
+      <td><span style="color:${RARITY_COLOR[r]};font-weight:600">${RARITY_LABEL[r]||r}</span></td>
+      <td>${(item.price||0).toLocaleString()}원</td>
+      <td>${((item.dropRate||0)*100).toFixed(1)}%</td>
+      <td>${item.durability||100}</td>
+      <td>+${item.enhancement||0}</td>
+      <td>
+        <button class="btn btn-secondary btn-sm" onclick="showItemEdit('${id}')">편집</button>
+        <button class="btn btn-secondary btn-sm" onclick="copyItem('${id}')">복사</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteItem('${id}')">삭제</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function createItem() {
+  const id = document.getElementById('ni-id').value.trim();
+  const name = document.getElementById('ni-name').value.trim();
+  if(!id||!name) { notify('ID와 이름을 입력해주세요.', 'error'); return; }
+  const data = {
+    name, icon: document.getElementById('ni-icon').value||'📦',
+    rarity: document.getElementById('ni-rarity').value,
+    price: Number(document.getElementById('ni-price').value)||0,
+    dropRate: Number(document.getElementById('ni-drop').value)||0.1,
+    durability: Number(document.getElementById('ni-dur').value)||100,
+    enhancement: 0, created: Date.now()
+  };
+  db && db.ref(`items/${id}`).set(data).then(() => {
+    notify(`아이템 생성: ${name}`, 'success');
+    closeModal('item-create-modal');
+  });
+}
+
+function showItemEdit(id) {
+  const item = allItems[id];
+  if(!item) return;
+  document.getElementById('ei-id').value = id;
+  document.getElementById('ei-rarity').value = item.rarity||'common';
+  document.getElementById('ei-price').value = item.price||0;
+  document.getElementById('ei-drop').value = item.dropRate||0;
+  document.getElementById('ei-dur').value = item.durability||100;
+  document.getElementById('ei-enhance').value = item.enhancement||0;
+  openModal('item-edit-modal');
+}
+
+function saveItemEdit() {
+  const id = document.getElementById('ei-id').value;
+  const upd = {
+    rarity: document.getElementById('ei-rarity').value,
+    price: Number(document.getElementById('ei-price').value),
+    dropRate: Number(document.getElementById('ei-drop').value),
+    durability: Number(document.getElementById('ei-dur').value),
+    enhancement: Number(document.getElementById('ei-enhance').value),
+  };
+  db && db.ref(`items/${id}`).update(upd).then(() => {
+    notify(`아이템 수정: ${id}`, 'success');
+    closeModal('item-edit-modal');
+  });
+  sendCommand('updateItem', { itemId: id, ...upd });
+}
+
+function copyItem(id) {
+  const item = allItems[id];
+  if(!item) return;
+  const newId = `${id}_copy`;
+  db && db.ref(`items/${newId}`).set({ ...item, name: (item.name||id)+' (복사)', created: Date.now() }).then(() => {
+    notify(`아이템 복사: ${newId}`, 'success');
+  });
+}
+
+function deleteItem(id) {
+  if(!confirm(`아이템 "${id}"을 삭제할까요?`)) return;
+  db && db.ref(`items/${id}`).remove().then(() => notify(`삭제: ${id}`, 'info'));
+  sendCommand('deleteItem', { itemId: id });
+}
+
+// ── Grant Log ──
+function loadGrantLog() {
+  if(!db) return;
+  db.ref('logs/item_grants').orderByChild('timestamp').limitToLast(100).on('value', snap => {
+    const logs = snap.val() || {};
+    const container = document.getElementById('grant-log-list');
+    const entries = Object.entries(logs).reverse();
+    if(!entries.length) { container.innerHTML = '<div style="text-align:center;color:var(--text-secondary);padding:40px">기록 없음</div>'; return; }
+    container.innerHTML = entries.map(([,log]) => `
+      <div class="log-entry">
+        <span class="log-time">${new Date(log.timestamp).toLocaleString('ko-KR')}</span>
+        <span class="log-action">아이템 지급</span>
+        <span>플레이어: <strong>${log.playerId}</strong></span>
+        <span>아이템: <strong>${log.itemId}</strong> ×${log.qty}</span>
+        <span class="text-secondary">by ${log.admin||'admin'}</span>
+      </div>
+    `).join('');
+  });
+}
+
+// ── Command Log ──
+function renderCommandLog() {
+  const container = document.getElementById('command-log-list');
+  if(!commandLog.length) { container.innerHTML = '<div style="text-align:center;color:var(--text-secondary);padding:40px">기록 없음</div>'; return; }
+  container.innerHTML = commandLog.map(log => `
+    <div class="log-entry">
+      <span class="log-time">${new Date(log.timestamp).toLocaleString('ko-KR')}</span>
+      <span class="log-action">${log.type}</span>
+      <span style="color:var(--text-secondary);font-family:monospace;font-size:11px">${JSON.stringify(log.params||{})}</span>
+    </div>
+  `).join('');
+}
+
+// ── Modal Helpers ──
+function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', e => { if(e.target === el) el.classList.add('hidden'); });
+});
+
+// ── Init ──
+navigate('player-list');
+</script>
+</body>
+</html>
