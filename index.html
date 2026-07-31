@@ -653,10 +653,9 @@
         <div class="fg">
           <label class="fl">알림 종류</label>
           <div class="flex g8" style="flex-wrap:wrap">
-            <label class="alert-type-btn" data-type="info" onclick="selectAlertType('info')" style="background:rgba(91,108,255,.15);border:1px solid var(--accent);border-radius:6px;padding:6px 12px;cursor:pointer;font-size:12px;color:var(--accent)">ℹ️ 정보</label>
-            <label class="alert-type-btn" data-type="ok" onclick="selectAlertType('ok')" style="border:1px solid var(--border);border-radius:6px;padding:6px 12px;cursor:pointer;font-size:12px;color:var(--muted)">✅ 성공</label>
-            <label class="alert-type-btn" data-type="warn" onclick="selectAlertType('warn')" style="border:1px solid var(--border);border-radius:6px;padding:6px 12px;cursor:pointer;font-size:12px;color:var(--muted)">⚠️ 경고</label>
-            <label class="alert-type-btn" data-type="danger" onclick="selectAlertType('danger')" style="border:1px solid var(--border);border-radius:6px;padding:6px 12px;cursor:pointer;font-size:12px;color:var(--muted)">🚨 위험</label>
+            <label class="alert-type-btn" data-type="event" onclick="selectAlertType('event')" style="background:rgba(91,108,255,.15);border:1px solid var(--accent);border-radius:6px;padding:6px 12px;cursor:pointer;font-size:12px;color:var(--accent)">🎉 이벤트</label>
+            <label class="alert-type-btn" data-type="notice" onclick="selectAlertType('notice')" style="border:1px solid var(--border);border-radius:6px;padding:6px 12px;cursor:pointer;font-size:12px;color:var(--muted)">📢 공지</label>
+            <label class="alert-type-btn" data-type="update" onclick="selectAlertType('update')" style="border:1px solid var(--border);border-radius:6px;padding:6px 12px;cursor:pointer;font-size:12px;color:var(--muted)">🔧 업데이트된점</label>
           </div>
         </div>
         <div class="fg">
@@ -1588,13 +1587,12 @@ function deleteNotice(uid) {
 }
 
 // ── Alerts ──
-let curAlertType = 'info';
+let curAlertType = 'event';
 
 const ALERT_COLORS = {
-  info:   { bg:'rgba(91,108,255,.15)',  border:'var(--accent)', color:'var(--accent)',  label:'ℹ️ 정보' },
-  ok:     { bg:'rgba(46,213,115,.15)',  border:'var(--ok)',     color:'var(--ok)',      label:'✅ 성공' },
-  warn:   { bg:'rgba(255,165,2,.15)',   border:'var(--warn)',   color:'var(--warn)',    label:'⚠️ 경고' },
-  danger: { bg:'rgba(255,71,87,.15)',   border:'var(--danger)', color:'var(--danger)',  label:'🚨 위험' },
+  event:  { bg:'rgba(91,108,255,.15)',  border:'var(--accent)', color:'var(--accent)',  label:'🎉 이벤트' },
+  notice: { bg:'rgba(255,165,2,.15)',   border:'var(--warn)',   color:'var(--warn)',    label:'📢 공지' },
+  update: { bg:'rgba(46,213,115,.15)',  border:'var(--ok)',     color:'var(--ok)',      label:'🔧 업데이트된점' },
 };
 
 function toggleAlertTarget(val) {
@@ -1635,8 +1633,8 @@ function sendAlert() {
     const users = Object.keys(allUsers);
     if(!users.length) { notify('유저가 없습니다.', 'err'); return; }
     const updates = {};
-    users.forEach(u => { updates[`notifications/${u}/${Date.now()}_${Math.random().toString(36).slice(2,6)}`] = payload; });
-    updates[`notifications/ALL/${Date.now()}`] = payload;
+    users.forEach(u => { updates[`push_notifications/${u}/${Date.now()}_${Math.random().toString(36).slice(2,6)}`] = payload; });
+    updates[`push_notifications/ALL/${Date.now()}`] = payload;
     db.ref().update(updates).then(() => {
       notify(`✅ 전체 ${users.length}명에게 알림 전송!`, 'ok');
       document.getElementById('alert-title').value = '';
@@ -1644,7 +1642,7 @@ function sendAlert() {
       loadAlerts();
     }).catch(e => notify('오류: ' + e.message, 'err'));
   } else {
-    db.ref(`notifications/${uid}`).push(payload).then(() => {
+    db.ref(`push_notifications/${uid}`).push(payload).then(() => {
       notify(`✅ ${uid}에게 알림 전송!`, 'ok');
       document.getElementById('alert-title').value = '';
       document.getElementById('alert-msg').value = '';
@@ -1660,7 +1658,7 @@ function loadAlerts() {
   sel.innerHTML = '<option value="">유저 선택...</option>' +
     Object.keys(allUsers).map(id => `<option value="${id}">${id}</option>`).join('');
 
-  db.ref('notifications').once('value', snap => {
+  db.ref('push_notifications').once('value', snap => {
     const data = snap.val() || {};
     const container = document.getElementById('alert-log');
     const rows = [];
@@ -1697,7 +1695,7 @@ function loadAlerts() {
 
 function deleteAlert(uid, id) {
   if(!db) return;
-  db.ref(`notifications/${uid}/${id}`).remove().then(() => {
+  db.ref(`push_notifications/${uid}/${id}`).remove().then(() => {
     notify('알림 삭제 완료', 'info');
     loadAlerts();
   }).catch(e => notify('오류: ' + e.message, 'err'));
